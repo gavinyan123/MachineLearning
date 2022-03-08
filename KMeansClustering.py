@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import random
 
+#find initial centroids for starting point
 def random_centroids(df, K):
     # init_centroids = random.sample(range(0, len(df)),K)
     # centroids = []
@@ -16,6 +17,8 @@ def random_centroids(df, K):
     percentile_list  = [x for x in range(0,N,int(N/(K+1)))]
     return df.iloc[percentile_list[1:K+1]]
 
+#euclidean distance
+#square root of the sum of distance between point and point b squared
 def calc_distance(X1, X2):
     return (sum((X1 - X2)**2))**0.5
 
@@ -61,15 +64,6 @@ def calc_centroid_variance(clusters, cluster_array):
         sum_squares.append(np.sum(np.sum((current_cluster - mean_repmat)**2)))
     return sum_squares
 
-# def findClosestCentroids(init, X):
-#     assigned_centroid = []
-#     for i in X: 
-#         distance=[]
-#         for j in init: 
-#             distance.append(calc_distance(i,j))
-#         assigned_centroid.append(np.argmin(distance))
-#     return assigned_centroid
-
 def plot_centroids(data, x, y, centroids):
     plt.scatter(data[x],data[y],c='black')
     plt.scatter(centroids[x],centroids[y],c='green')
@@ -111,27 +105,31 @@ if __name__ == "__main__":
     cluster_data.sort_values(by=['rad','compact'], inplace=True)
     cluster_array = np.array(cluster_data)
     # print(findClosestCentroids(centroids, df))
-    k = 4
+    k = 5
     cluster_vars = []
+    # sumsq = []
     centroids = [cluster_array[i+2] for i in range(k)]
     clusters = assign_clusters(centroids, cluster_array)
     initial_clusters = clusters
     cluster_data['clusters'] = clusters
     # print(0, round(np.mean(calc_centroid_variance(clusters, cluster_array))))
-    for i in range(8):
+    for i in range(10):
         centroids = calc_centroids(clusters, cluster_array)
         clusters = assign_clusters(centroids, cluster_array)
         cluster_var = np.mean(calc_centroid_variance(clusters, 
                                                     cluster_array))
         cluster_vars.append(cluster_var)
+        # sumsq.append(sum(calc_centroid_variance(clusters, cluster_array)))
         # print(i+1, round(cluster_var))
     x_label = []
     for i in range(len(cluster_vars)):
         x_label.append(i+1)
-
+#plot elbow method
+#4/5 is optimal
     plt.plot(x_label, cluster_vars,'go--', linewidth=1.5, markersize=4)
     plt.show()
-
+    # plt.plot(x_label, sumsq,'go--', linewidth=1.5, markersize=4)
+    # plt.show()
     centroids2 = np.array(centroids)
     print(centroids2)
     centroids2 = pd.DataFrame(centroids2, columns = ['rad', 'compact'])
