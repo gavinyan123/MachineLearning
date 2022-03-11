@@ -3,9 +3,11 @@ import pandas as pd
 import numpy as np
 import random as rd
 import matplotlib.pyplot as plt
+import numpy.matlib
+import KMeansClustering
 
 # Select random observation as centroids
-def plot_init_centroids(data, K):
+def get_init_centroids(data, K):
     N = data.shape[0]
     percentile_list  = [x for x in range(0,N,int(N/(K+1)))]    
     Centroids = data.iloc[percentile_list[1:K+1]]
@@ -17,11 +19,18 @@ def plot_init_centroids(data, K):
     # plt.show()
     return Centroids
 
+def plot_init_centroids(data, K):
+    Centroids = get_init_centroids(data, K)
+    plt.scatter(data["rad"],X["compact"],c='black')
+    plt.scatter(Centroids["rad"],Centroids["compact"],c='red')
+    plt.xlabel('rad')
+    plt.ylabel('compact')
+    plt.show()
 
 def clustering(data, col1, col2, K):
     diff = 1
     j=0
-    Centroids = plot_init_centroids(data, K)
+    Centroids = get_init_centroids(data, K)
     X = data
     elbow = []
     total = 0
@@ -37,7 +46,6 @@ def clustering(data, col1, col2, K):
                 ED.append(d)
             X[i]=ED
             i=i+1
-
         C=[]
         for index,row in X.iterrows():
             min_dist=row[1]
@@ -48,6 +56,7 @@ def clustering(data, col1, col2, K):
                     pos=i+1
             C.append(pos)
         X["Cluster"]=C
+        cluster = np.array(X['Cluster'])
         Centroids_new = X.groupby(["Cluster"]).mean()[[col2,col1]]
         if j == 0:
             diff=1
@@ -57,18 +66,14 @@ def clustering(data, col1, col2, K):
             print(diff.sum())
         Centroids = X.groupby(["Cluster"]).mean()[[col2,col1]]
 
-        for m in range(K):
-            k_sum = X[m+1].sum()
-        # for k in range(K):
-        #     color = np.random.rand(1,3)
-        #     data=X[X["Cluster"]==k+1]
-        #     plt.scatter(data[col1],data[col2],c=color)
-        # plt.scatter(Centroids[col1],Centroids[col2],c='red')
-        # plt.xlabel(col1)
-        # plt.ylabel(col2)
-        # plt.show()
-    elbow.append(k_sum)
-    return elbow
+        for k in range(K):
+            color = np.random.rand(1,3)
+            data=X[X["Cluster"]==k+1]
+            plt.scatter(data[col1],data[col2],c=color)
+        plt.scatter(Centroids[col1],Centroids[col2],c='red')
+        plt.xlabel(col1)
+        plt.ylabel(col2)
+        plt.show()
 
 names_n = ['id_num', 'outcome', 'rad', 'texture', 'perim', 'area', 'smooth', 'compact', 'concave', 'concave_points',
             'sym', 'fractal_dim', \
@@ -78,18 +83,47 @@ names_n = ['id_num', 'outcome', 'rad', 'texture', 'perim', 'area', 'smooth', 'co
             'concave_worst', 'concave_points_worst', 'sym_worst', 'fractal_dim_worst']
 
 df = pd.read_csv('wdbc.data', index_col=False,header=None, names= names_n)
-df.head()
+df['outcome'] = df['outcome'].map(lambda diag: bool(diag == "M"))  # M being cancerous
+#choose a column to sort the data by, this makes it easier to pick initial centroil positions
+df.sort_values( by=['area'], inplace=True)
+
+K=4
 
 X = df[["rad","compact"]]
+elbow = KMeansClustering
+cluster_array = np.array(X)
+cluster_vars = []
+centroids = [cluster_array[i+2] for i in range(K)]
+clusters = elbow.assign_clusters(centroids, cluster_array)
+initial_clusters = clusters
+X['cluster'] = clusters
+
 #Visualise data points
-# plt.scatter(X["rad"],X["compact"],c='black')
-# plt.xlabel('rad')
-# plt.ylabel('compact')
-# plt.show()
+plt.scatter(X["rad"],X["compact"],c='black')
+plt.xlabel('rad')
+plt.ylabel('compact')
+plt.show()
 
-#number of clusters
-plot_elbow = []
-for K in range(2,10,1):
-    plot_elbow.append(clustering(X, 'rad', 'compact', K))
+for i in range(10):
+    centroids = elbow.calc_centroids(clusters, cluster_array)
+    clusters = elbow.assign_clusters(centroids, cluster_array)
+    cluster_var = np.mean(elbow.calc_centroid_variance(clusters, 
+                                                cluster_array))
+    cluster_vars.append(cluster_var)
+    # sumsq.append(sum(calc_centroid_variance(clusters, cluster_array)))
+    # print(i+1, round(cluster_var))
+x_label = []
+for i in range(len(cluster_vars)):
+    x_label.append(i+1)
 
-print(plot_elbow)
+#plot elbow method
+#4/5 is optimal
+plt.plot(x_label, cluster_vars,'go--', linewidth=1.5, markersize=4)
+plt.xlabel("Num Clusters(K)")
+plt.ylabel("Sum Squares")
+plt.show()
+
+#iterate through cluster K amount of times
+for k in range(2,K,1):
+    plot_init_centroids(X, k)
+    clustering(X, 'rad', 'compact', k)
