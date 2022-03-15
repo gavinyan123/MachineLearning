@@ -54,7 +54,8 @@ def clustering(data, col1, col2, K, plot):
                     pos=i+1
             C.append(pos)
         X["Cluster"]=C
-
+        first_cluster = X.loc[X['Cluster'] == 1]
+        print(first_cluster['outcome'].value_counts())
         #find inertia/elbow method
         z=0
         elbow = []
@@ -62,7 +63,7 @@ def clustering(data, col1, col2, K, plot):
 
         for index3, row_e in Centroids.iterrows():
             centroid_point = Centroids.iloc[0]
-            xd = X.loc[df['Cluster'] == z+1]
+            xd = X.loc[X['Cluster'] == z+1]
             for index4, row_f in xd.iterrows():
                 sum1 = (centroid_point[col1] - row_f[col1])**2
                 sum2 = (centroid_point[col2] - row_f[col2])**2
@@ -90,11 +91,13 @@ def clustering(data, col1, col2, K, plot):
             plt.xlabel(col1)
             plt.ylabel(col2)
             plt.show()
+
     elbow_points = elbow_plot[:10]
     plt.plot(range(len(elbow_points)), elbow_points,'go--', linewidth=1.5, markersize=4)
-    plt.xlabel("Num Clusters(K)")
+    plt.xlabel("Iterations")
     plt.ylabel("Sum Squares")
     plt.show()
+
 names_n = ['id_num', 'outcome', 'rad', 'texture', 'perim', 'area', 'smooth', 'compact', 'concave', 'concave_points',
             'sym', 'fractal_dim', \
             'rad_SE', 'texture_SE', 'perim_SE', 'area_SE', 'smooth_SE', 'compact_SE', 'concave_SE',
@@ -106,8 +109,8 @@ df = pd.read_csv('wdbc.data', index_col=False,header=None, names= names_n)
 df['outcome'] = df['outcome'].map(lambda diag: bool(diag == "M"))  # M being cancerous
 #choose a column to sort the data by, this makes it easier to pick initial centroil positions
 df.sort_values( by=['area'], inplace=True)
-
-K=10
+print(df)
+K=5
 
 X=df
 
@@ -120,4 +123,4 @@ plt.show()
 #iterate through cluster K amount of times
 for k in range(2,K,1):
     plot_init_centroids(X, k)
-    clustering(X, 'rad', 'compact', k,1)
+    clustering(X, 'rad', 'compact', k,0)
