@@ -25,7 +25,7 @@ def plot_init_centroids(data, K):
     plt.ylabel('compact')
     plt.show()
 
-def clustering(data, col1, col2, K, plot):
+def clustering(data, col1, col2, K):
     diff = 1
     j=0
     Centroids = get_init_centroids(data, K)
@@ -54,7 +54,7 @@ def clustering(data, col1, col2, K, plot):
                     pos=i+1
             C.append(pos)
         X["Cluster"]=C
-        first_cluster = X.loc[X['Cluster'] == 1]
+        first_cluster = X.loc[X['Cluster'] == 2]
         print(first_cluster['outcome'].value_counts())
         #find inertia/elbow method
         z=0
@@ -82,21 +82,22 @@ def clustering(data, col1, col2, K, plot):
             # print(diff.sum())
         Centroids = X.groupby(["Cluster"]).mean()[[col2,col1]]
 
-        if(plot ==1):
-            for k in range(K):
-                color = np.random.rand(1,3)
-                data=X[X["Cluster"]==k+1]
-                plt.scatter(data[col1],data[col2],c=color)
-            plt.scatter(Centroids[col1],Centroids[col2],c='red')
-            plt.xlabel(col1)
-            plt.ylabel(col2)
-            plt.show()
+    #     if(plot ==1):
+    #         for k in range(K):
+    #             color = np.random.rand(1,3)
+    #             data=X[X["Cluster"]==k+1]
+    #             plt.scatter(data[col1],data[col2],c=color)
+    #         plt.scatter(Centroids[col1],Centroids[col2],c='red')
+    #         plt.xlabel(col1)
+    #         plt.ylabel(col2)
+    #         plt.show()
 
-    elbow_points = elbow_plot[:10]
-    plt.plot(range(len(elbow_points)), elbow_points,'go--', linewidth=1.5, markersize=4)
-    plt.xlabel("Iterations")
-    plt.ylabel("Sum Squares")
-    plt.show()
+    # elbow_points = elbow_plot[:8]
+    # plt.plot(range(len(elbow_points)), elbow_points,'go--', linewidth=1.5, markersize=4)
+    # plt.xlabel("Iterations")
+    # plt.ylabel("Sum Squares")
+    # plt.show()
+    return elbow_plot, X
 
 names_n = ['id_num', 'outcome', 'rad', 'texture', 'perim', 'area', 'smooth', 'compact', 'concave', 'concave_points',
             'sym', 'fractal_dim', \
@@ -114,6 +115,49 @@ K=5
 
 X=df
 
+elbow, cluster = clustering(X, 'rad', 'compact', 4)
+elbow_points = elbow[:8]
+plt.plot(range(len(elbow_points)), elbow_points,'go--', linewidth=1.5, markersize=4)
+plt.xlabel("Iterations")
+plt.ylabel("Sum Squares")
+plt.show()
+
+print(cluster['outcome'].value_counts())
+
+#majority clustering
+#if false>true then everything is false
+#if true>false then everything is true
+for i in range(1,K):
+    # print(i)
+    cluster_point = cluster.loc[cluster['Cluster'] == i]
+    values = cluster_point['outcome'].value_counts().keys().tolist()
+    counts = cluster_point['outcome'].value_counts().tolist()
+    # print(values, counts, "printing here")
+    if(i == 4):
+        cluster_point['outcome'] = True
+        cluster.loc[cluster['Cluster'] == i] = cluster_point
+        # print(cluster_point)
+        continue
+    data = {values[0]:[counts[0]], values[1]:[counts[1]]}
+
+    cluster_df = pd.DataFrame(data)
+    # print(cluster_df)
+
+    truth = cluster_df.loc[:,True]
+    notTruth = cluster_df.loc[:,False]
+    # print(truth, notTruth)
+    # if(cluster_df.iloc[0,0]>cluster_df.iloc[0,1]):
+    if(notTruth.iloc[0] > truth.iloc[0]):
+        cluster_point['outcome'] = False
+        cluster.loc[cluster['Cluster'] == i] = cluster_point
+        # print(cluster_point)
+    else:
+        cluster_point['outcome'] = True
+        cluster.loc[cluster['Cluster'] == i] = cluster_point
+        # print(cluster_point)
+
+print(cluster['outcome'].value_counts(), 'here it is')
+
 #Visualise data points
 plt.scatter(X["rad"],X["compact"],c='black')
 plt.xlabel('rad')
@@ -123,4 +167,4 @@ plt.show()
 #iterate through cluster K amount of times
 for k in range(2,K,1):
     plot_init_centroids(X, k)
-    clustering(X, 'rad', 'compact', k,0)
+    clustering(X, 'rad', 'compact', k)
