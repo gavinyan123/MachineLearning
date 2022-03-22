@@ -1,4 +1,6 @@
 #import libraries
+import copy
+from re import L
 import pandas as pd
 import numpy as np
 import random as rd
@@ -54,8 +56,9 @@ def clustering(data, col1, col2, K):
                     pos=i+1
             C.append(pos)
         X["Cluster"]=C
-        first_cluster = X.loc[X['Cluster'] == 2]
-        print(first_cluster['outcome'].value_counts())
+        cluster_d = X.loc[X['Cluster'] == 2]
+        # print(cluster_d['outcome'].value_counts())
+
         #find inertia/elbow method
         z=0
         elbow = []
@@ -99,6 +102,134 @@ def clustering(data, col1, col2, K):
     # plt.show()
     return elbow_plot, X
 
+#majority clustering
+#if false>true then everything is false
+#if true>false then everything is true
+def majority_cluster(df, K):
+    cluster_data = df
+    for i in range(1,K):
+        # print(i)
+        cluster_point = cluster_data.loc[cluster_data['Cluster'] == i]
+        values = cluster_point['outcome'].value_counts().keys().tolist()
+        counts = cluster_point['outcome'].value_counts().tolist()
+        # print(values, counts, "printing here")
+        # if(i == 4):
+        #     cluster_point['outcome'] = True
+        #     cluster_data.loc[cluster_data['Cluster'] == i] = cluster_point
+        #     # print(cluster_point)
+        #     continue
+        if(values[0] == True):
+            if(len(values) == 1):
+                values.append(False)
+            else:
+                values[1] = False
+        else:
+            values[0] = False
+            if(len(values) == 1):
+                values.append(True)
+
+        if(len(counts) == 1):
+            counts.append(0)
+        data = {values[0]:[counts[0]], values[1]:[counts[1]]}
+        cluster_df = pd.DataFrame(data)
+        # print(cluster_df)
+
+        truth = cluster_df.loc[:,True]
+        notTruth = cluster_df.loc[:,False]
+        # print(truth, notTruth)
+
+        if(notTruth.iloc[0] > truth.iloc[0]):
+            cluster_point['outcome'] = False
+            cluster_data.loc[cluster_data['Cluster'] == i] = cluster_point
+            # print(cluster_point)
+        else:
+            cluster_point['outcome'] = True
+            cluster_data.loc[cluster_data['Cluster'] == i] = cluster_point
+            # print(cluster_point)
+    return cluster_data
+
+def accuracy(orig_df, new_df):
+    orig_df['accuracy'] = np.where(orig_df['outcome'] == new_df['outcome'], True, False)
+    positives = orig_df.loc[orig_df['outcome'] == True]
+    negatives = orig_df.loc[orig_df['outcome'] == False]
+    positives['true_positive'] = np.where(positives['outcome'] == positives['accuracy'], True, False)
+    negatives['true_negative'] = np.where(negatives['outcome'] == negatives['accuracy'], True, False)
+    
+    pos_val = positives['true_positive'].value_counts().keys().tolist()
+    pos_count = positives['true_positive'].value_counts().tolist()
+    
+    if(pos_val[0] == True):
+        if(len(pos_val) == 1):
+            pos_val.append(False)
+        else:
+            pos_val[1] = False
+    else:
+        pos_val[0] = False
+        if(len(pos_val) == 1):
+            pos_val.append(True)
+
+    if(len(pos_count) == 1):
+        pos_count.append(0)
+    
+    pos_data = {pos_val[0]:[pos_count[0]], pos_val[1]:[pos_count[1]]}
+    
+    pos_df = pd.DataFrame(pos_data)
+    pos_df['sum'] = pos_df.sum(axis=1)
+
+    neg_val = negatives['true_negative'].value_counts().keys().tolist()
+    neg_count = negatives['true_negative'].value_counts().tolist()
+
+    if(neg_val[0] == True):
+        if(len(neg_val) == 1):
+            neg_val.append(False)
+        else:
+            neg_val[1] = False
+    else:
+        neg_val[0] = False
+        if(len(neg_val) == 1):
+            neg_val.append(True)
+
+    if(len(neg_count) == 1):
+        neg_count.append(0)
+
+    neg_data = {neg_val[0]:[neg_count[0]], neg_val[1]:[neg_count[1]]}
+
+    neg_df = pd.DataFrame(neg_data)
+    neg_df['sum'] = neg_df.sum(axis=1)
+
+    avg_pos = pos_df[True]/pos_df['sum']
+    avg_neg = neg_df[True]/neg_df['sum']
+    uar=avg_neg + avg_pos
+    print(uar)
+    return uar
+
+def reg_avg(orig_df, new_df):
+    orig_df['accuracy'] = np.where(orig_df['outcome'] == new_df['outcome'], True, False)
+    val = orig_df['accuracy'].value_counts().keys().tolist()
+    count = orig_df['accuracy'].value_counts().tolist()
+    
+    if(val[0] == True):
+        if(len(val) == 1):
+            val.append(False)
+        else:
+            val[1] = False
+    else:
+        val[0] = False
+        if(len(val) == 1):
+            val.append(True)
+
+    if(len(count) == 1):
+        count.append(0)
+    
+    data = {val[0]:[count[0]], val[1]:[count[1]]}
+    
+    df = pd.DataFrame(data)
+    df['sum'] = df.sum(axis=1)
+    average = df[True]/df['sum']
+    return average
+
+
+
 names_n = ['id_num', 'outcome', 'rad', 'texture', 'perim', 'area', 'smooth', 'compact', 'concave', 'concave_points',
             'sym', 'fractal_dim', \
             'rad_SE', 'texture_SE', 'perim_SE', 'area_SE', 'smooth_SE', 'compact_SE', 'concave_SE',
@@ -106,65 +237,50 @@ names_n = ['id_num', 'outcome', 'rad', 'texture', 'perim', 'area', 'smooth', 'co
             'rad_worst', 'texture_worst', 'perim_worst', 'area_worst', 'smooth_worst', 'compact_worst',
             'concave_worst', 'concave_points_worst', 'sym_worst', 'fractal_dim_worst']
 
-df = pd.read_csv('wdbc.data', index_col=False,header=None, names= names_n)
-df['outcome'] = df['outcome'].map(lambda diag: bool(diag == "M"))  # M being cancerous
-#choose a column to sort the data by, this makes it easier to pick initial centroil positions
-df.sort_values( by=['area'], inplace=True)
-print(df)
-K=5
+if __name__ == "__main__":
+    df = pd.read_csv('wdbc.data', index_col=False,header=None, names= names_n)
+    df['outcome'] = df['outcome'].map(lambda diag: bool(diag == "M"))  # M being cancerous
+    #choose a column to sort the data by, this makes it easier to pick initial centroil positions
+    df.sort_values( by=['area'], inplace=True)
+    print(df)
+    K=5
 
-X=df
+    X=df
 
-elbow, cluster = clustering(X, 'rad', 'compact', 4)
-elbow_points = elbow[:8]
-plt.plot(range(len(elbow_points)), elbow_points,'go--', linewidth=1.5, markersize=4)
-plt.xlabel("Iterations")
-plt.ylabel("Sum Squares")
-plt.show()
+    accuracy_data = []
+    average_data = []
+    # acquired 99% accuracy ok K =6
+    for repeat in range(10):
+        elbow, cluster = clustering(X, 'rad', 'compact', repeat+1)
+        use_cluster = copy.deepcopy(cluster)
+        elbow_points = elbow[:8]
+        # plt.plot(range(len(elbow_points)), elbow_points,'go--', linewidth=1.5, markersize=4)
+        # plt.xlabel("Iterations")
+        # plt.ylabel("Sum Squares")
+        # plt.show()
+        new_cluster = majority_cluster(use_cluster, repeat)
+        list_acc=accuracy(X, new_cluster)
+        list_avg = reg_avg(X, new_cluster)
+        accuracy_data.append(list_acc)
+        average_data.append(list_avg)
 
-print(cluster['outcome'].value_counts())
+    plt.plot(range(len(accuracy_data)), accuracy_data,'go--', linewidth=1.5, markersize=4)
+    plt.xlabel("Iterations")
+    plt.ylabel("Accuracy")
+    plt.show()
 
-#majority clustering
-#if false>true then everything is false
-#if true>false then everything is true
-for i in range(1,K):
-    # print(i)
-    cluster_point = cluster.loc[cluster['Cluster'] == i]
-    values = cluster_point['outcome'].value_counts().keys().tolist()
-    counts = cluster_point['outcome'].value_counts().tolist()
-    # print(values, counts, "printing here")
-    if(i == 4):
-        cluster_point['outcome'] = True
-        cluster.loc[cluster['Cluster'] == i] = cluster_point
-        # print(cluster_point)
-        continue
-    data = {values[0]:[counts[0]], values[1]:[counts[1]]}
+    plt.plot(range(len(average_data)), average_data,'go--', linewidth=1.5, markersize=4)
+    plt.xlabel("Iterations")
+    plt.ylabel("Accuracy")
+    plt.show()
 
-    cluster_df = pd.DataFrame(data)
-    # print(cluster_df)
+    #Visualise data points
+    plt.scatter(X["rad"],X["compact"],c='black')
+    plt.xlabel('rad')
+    plt.ylabel('compact')
+    plt.show()
 
-    truth = cluster_df.loc[:,True]
-    notTruth = cluster_df.loc[:,False]
-    # print(truth, notTruth)
-    # if(cluster_df.iloc[0,0]>cluster_df.iloc[0,1]):
-    if(notTruth.iloc[0] > truth.iloc[0]):
-        cluster_point['outcome'] = False
-        cluster.loc[cluster['Cluster'] == i] = cluster_point
-        # print(cluster_point)
-    else:
-        cluster_point['outcome'] = True
-        cluster.loc[cluster['Cluster'] == i] = cluster_point
-        # print(cluster_point)
-
-print(cluster['outcome'].value_counts(), 'here it is')
-
-#Visualise data points
-plt.scatter(X["rad"],X["compact"],c='black')
-plt.xlabel('rad')
-plt.ylabel('compact')
-plt.show()
-
-#iterate through cluster K amount of times
-for k in range(2,K,1):
-    plot_init_centroids(X, k)
-    clustering(X, 'rad', 'compact', k)
+    #iterate through cluster K amount of times
+    for k in range(2,K,1):
+        plot_init_centroids(X, k)
+        clustering(X, 'rad', 'compact', k)
