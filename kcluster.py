@@ -1,10 +1,48 @@
 #import libraries
 import copy
-from re import L
 import pandas as pd
 import numpy as np
 import random as rd
 import matplotlib.pyplot as plt
+import math
+
+def stratify(data, target, n):
+    array = data.values
+    y = data[target].values
+    
+    unique, counts = np.unique(data[target].values, return_counts=True)
+    new_counts = counts * (n/sum(counts))
+    new_counts = fit_new_counts_to_n(new_counts, n)
+    
+    selected_count = np.zeros(len(unique))
+    selected_row_indices = []
+    for i in range(array.shape[0]):
+        if sum(selected_count) == sum(new_counts):
+            break
+        cr_target_value = y[i]
+        cr_target_index = np.where(unique==cr_target_value)[0][0]
+        if selected_count[cr_target_index] < new_counts[cr_target_index]:
+            selected_row_indices.append(i)
+            selected_count[cr_target_index] += 1
+    row_indices_mask = np.array([x in selected_row_indices for x in np.arange(array.shape[0])])
+    
+    return pd.DataFrame(array[row_indices_mask], columns=data.columns)
+
+def fit_new_counts_to_n(new_counts, n):
+    decimals = [math.modf(x)[0] for x in new_counts]
+    integers = [int(math.modf(x)[1]) for x in new_counts]
+    arg_max = np.array(map(np.argmax, decimals))
+    sorting_indices =  np.argsort(decimals)[::-1][:n]
+    for i in sorting_indices:
+        if sum(integers) < n:
+            integers[i] += 1
+        else:
+            break
+    return integers
+
+#Normalize Data
+def Normalize(data):
+    return (data - data.min())/(data.max()-data.min())
 
 # Select random observation as centroids
 def get_init_centroids(data, K):
@@ -152,11 +190,11 @@ def accuracy(orig_df, new_df):
     orig_df['accuracy'] = np.where(orig_df['outcome'] == new_df['outcome'], True, False)
     positives = orig_df.loc[orig_df['outcome'] == True]
     negatives = orig_df.loc[orig_df['outcome'] == False]
-    positives['true_positive'] = np.where(positives['outcome'] == positives['accuracy'], True, False)
-    negatives['true_negative'] = np.where(negatives['outcome'] == negatives['accuracy'], True, False)
+    # positives['true_positive'] = np.where(positives['outcome'] == positives['accuracy'], True, False)
+    # negatives['true_negative'] = np.where(negatives['outcome'] == negatives['accuracy'], True, False)
     
-    pos_val = positives['true_positive'].value_counts().keys().tolist()
-    pos_count = positives['true_positive'].value_counts().tolist()
+    pos_val = positives['accuracy'].value_counts().keys().tolist()
+    pos_count = positives['accuracy'].value_counts().tolist()
     
     if(pos_val[0] == True):
         if(len(pos_val) == 1):
@@ -176,8 +214,8 @@ def accuracy(orig_df, new_df):
     pos_df = pd.DataFrame(pos_data)
     pos_df['sum'] = pos_df.sum(axis=1)
 
-    neg_val = negatives['true_negative'].value_counts().keys().tolist()
-    neg_count = negatives['true_negative'].value_counts().tolist()
+    neg_val = negatives['accuracy'].value_counts().keys().tolist()
+    neg_count = negatives['accuracy'].value_counts().tolist()
 
     if(neg_val[0] == True):
         if(len(neg_val) == 1):
@@ -199,7 +237,7 @@ def accuracy(orig_df, new_df):
 
     avg_pos = pos_df[True]/pos_df['sum']
     avg_neg = neg_df[True]/neg_df['sum']
-    uar=avg_neg + avg_pos
+    uar=(avg_neg + avg_pos)/2
     print(uar)
     return uar
 
@@ -242,7 +280,8 @@ if __name__ == "__main__":
     df['outcome'] = df['outcome'].map(lambda diag: bool(diag == "M"))  # M being cancerous
     #choose a column to sort the data by, this makes it easier to pick initial centroil positions
     df.sort_values( by=['area'], inplace=True)
-    print(df)
+    df['rad'] = Normalize(df['rad'])
+    df['compact'] = Normalize(df['compact'])
     K=5
 
     X=df
@@ -250,9 +289,13 @@ if __name__ == "__main__":
     accuracy_data = []
     average_data = []
     # acquired 99% accuracy ok K =6
-    for repeat in range(10):
-        elbow, cluster = clustering(X, 'rad', 'compact', repeat+1)
+    for repeat in range(2,20,1):
+        elbow, cluster = clustering(X, 'rad', 'compact', repeat)
         use_cluster = copy.deepcopy(cluster)
+        
+        ###work here
+        # strata_cluster = stratify(use_cluster, 'outcome', 25)
+
         elbow_points = elbow[:8]
         # plt.plot(range(len(elbow_points)), elbow_points,'go--', linewidth=1.5, markersize=4)
         # plt.xlabel("Iterations")
@@ -264,12 +307,12 @@ if __name__ == "__main__":
         accuracy_data.append(list_acc)
         average_data.append(list_avg)
 
-    plt.plot(range(len(accuracy_data)), accuracy_data,'go--', linewidth=1.5, markersize=4)
+    plt.plot(range(2,len(accuracy_data)), accuracy_data[2:],'go--', linewidth=1.5, markersize=4)
     plt.xlabel("Iterations")
     plt.ylabel("Accuracy")
     plt.show()
 
-    plt.plot(range(len(average_data)), average_data,'go--', linewidth=1.5, markersize=4)
+    plt.plot(range(2,len(average_data)), average_data[2:],'go--', linewidth=1.5, markersize=4)
     plt.xlabel("Iterations")
     plt.ylabel("Accuracy")
     plt.show()
