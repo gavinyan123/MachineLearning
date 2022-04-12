@@ -6,6 +6,83 @@ import random as rd
 import matplotlib.pyplot as plt
 import math
 
+def linear_regression(data, col1, col2):
+    N = len(data)
+    x = data[col1]
+    y = data[col2]
+    x_mean = x.mean()
+    y_mean = y.mean()
+    
+    B1_num = ((x - x_mean) * (y - y_mean)).sum()
+    B1_den = ((x - x_mean)**2).sum()
+    B1 = B1_num / B1_den
+    
+    B0 = y_mean - (B1*x_mean)
+    
+    reg_line = 'y = {} + {}β'.format(B0, round(B1, 3))
+    return (B0, B1, reg_line)
+
+def gradient_descent(X,col1, col2):
+    points = np.array(X[[col1, col2]])
+    learning_rate = 0.005
+    b = 0
+    m = 0
+    num_iterations = 1000
+    for i in range(num_iterations):
+        N = float(len(points))
+        D_b = 0
+        D_m = 0
+        for j in range(0, len(points)):
+            x = points[j, 0]
+            y = points[j, 1]
+            D_b += (-2/N) * (y-((m * x)+ b))
+            D_m += (-2/N) * x * (y-((m * x)+ b))
+            b = b - (learning_rate * D_b)
+            m = m - (learning_rate * D_m)
+    return b,m
+    
+# def gradient_descent(X, col1, col2):
+#     points = X[[col1, col2]]
+#     learning_rate = 0.005
+#     initial_b = 0
+#     initial_m = 0
+#     num_iterations = 1000
+#     print( "Starting gradient descent at b = {0}, m = {1}, error = {2}".format(initial_b, initial_m, calculate_error(initial_b, initial_m, np.array(points))))
+#     print ("Running...")
+#     [b, m] = gradient_descent_runner(points, initial_b, initial_m, learning_rate, num_iterations)
+#     print ("After {0} iterations b = {1}, m = {2}, error = {3}".format(num_iterations, b, m, calculate_error(b, m, np.array(points))))
+#     return [b,m]
+
+# def gradient_descent_runner(points, initial_b, initial_m, learning_rate, num_iterations):
+#     b = initial_b
+#     m = initial_m
+#     for i in range(num_iterations):
+#         b, m = step_gradient(b,m, np.array(points), learning_rate)
+#     return [b,m]
+
+# def step_gradient(current_b, current_m, points, learning_rate):
+#     D_b = 0
+#     D_m = 0
+#     N = float(len(points))
+#     for i in range(0, len(points)):
+#         x = points[i, 0]
+#         y = points[i, 1]
+#         D_b += (-2/N) * (y-((current_m * x)+ current_b))
+#         D_m += (-2/N) * x * (y-((current_m * x)+ current_b))
+#         current_b = current_b - (learning_rate * D_b)
+#         current_m = current_m - (learning_rate * D_m)
+#     new_b = current_b
+#     new_m = current_m
+#     return [new_b, new_m]
+
+def calculate_error(b, m, points):
+    error = 0
+    for i in range(0, len(points)):
+        x = points[i, 0]
+        y = points[i, 1]
+        error = error + (y - (m * x + b))**2
+    return error/float(len(points))
+
 def stratify(data, target, n):
     array = data.values
     y = data[target].values
@@ -40,7 +117,6 @@ def fit_new_counts_to_n(new_counts, n):
             break
     return integers
 
-#Normalize Data
 def Normalize(data):
     return (data - data.min())/(data.max()-data.min())
 
@@ -57,12 +133,12 @@ def get_init_centroids(data, K):
     # plt.show()
     return Centroids
 
-def plot_init_centroids(data, K):
+def plot_init_centroids(data, K, col1, col2):
     Centroids = get_init_centroids(data, K)
-    plt.scatter(data["rad"],data["compact"],c='black')
-    plt.scatter(Centroids["rad"],Centroids["compact"],c='red')
-    plt.xlabel('rad')
-    plt.ylabel('compact')
+    plt.scatter(data[col1],data[col2],c='black')
+    plt.scatter(Centroids[col1],Centroids[col2],c='red')
+    plt.xlabel(col1)
+    plt.ylabel(col2)
     plt.show()
 
 def clustering(data, col1, col2, K):
@@ -123,15 +199,14 @@ def clustering(data, col1, col2, K):
             # print(diff.sum())
         Centroids = X.groupby(["Cluster"]).mean()[[col2,col1]]
 
-    #     if(plot ==1):
-    #         for k in range(K):
-    #             color = np.random.rand(1,3)
-    #             data=X[X["Cluster"]==k+1]
-    #             plt.scatter(data[col1],data[col2],c=color)
-    #         plt.scatter(Centroids[col1],Centroids[col2],c='red')
-    #         plt.xlabel(col1)
-    #         plt.ylabel(col2)
-    #         plt.show()
+        # for k in range(K):
+        #     color = np.random.rand(1,3)
+        #     data=X[X["Cluster"]==k+1]
+        #     plt.scatter(data[col1],data[col2],c=color)
+        # plt.scatter(Centroids[col1],Centroids[col2],c='red')
+        # plt.xlabel(col1)
+        # plt.ylabel(col2)
+        # plt.show()
 
     # elbow_points = elbow_plot[:8]
     # plt.plot(range(len(elbow_points)), elbow_points,'go--', linewidth=1.5, markersize=4)
@@ -266,8 +341,6 @@ def reg_avg(orig_df, new_df):
     average = df[True]/df['sum']
     return average
 
-
-
 names_n = ['id_num', 'outcome', 'rad', 'texture', 'perim', 'area', 'smooth', 'compact', 'concave', 'concave_points',
             'sym', 'fractal_dim', \
             'rad_SE', 'texture_SE', 'perim_SE', 'area_SE', 'smooth_SE', 'compact_SE', 'concave_SE',
@@ -278,41 +351,59 @@ names_n = ['id_num', 'outcome', 'rad', 'texture', 'perim', 'area', 'smooth', 'co
 if __name__ == "__main__":
     df = pd.read_csv('wdbc.data', index_col=False,header=None, names= names_n)
     df['outcome'] = df['outcome'].map(lambda diag: bool(diag == "M"))  # M being cancerous
+
     #choose a column to sort the data by, this makes it easier to pick initial centroil positions
     df.sort_values( by=['area'], inplace=True)
-    df['rad'] = Normalize(df['rad'])
-    df['compact'] = Normalize(df['compact'])
+
+    for location in range(len(df.columns)):
+        if df.iloc[:,location].name == 'outcome':
+            continue
+        df.iloc[:,location] = Normalize(df.iloc[:,location])
+
+    print(df)
     K=5
 
-    X=df
+    X=copy.deepcopy(df)
+
+    B0, B1, reg_line = linear_regression(X, 'rad', 'smooth')
+    plt.scatter(X['rad'], X['smooth'])
+    plt.plot(X['rad'], B0 + B1*X['rad'],'go--',c = 'r', linewidth=1.5, markersize=4)
+    plt.xlabel('rad')
+    plt.ylabel('concave')
+    plt.show()
+
+    b,m = gradient_descent(X, 'rad', 'smooth')
+    print(b,m)
+    plt.scatter(X['rad'], X['smooth'])
+    plt.plot(X['rad'], b + m*X['rad'], 'go--',c = 'r', linewidth=1.5, markersize=4)
+    plt.show()
+    og_strat = stratify(X, 'outcome', 25)
 
     accuracy_data = []
     average_data = []
-    # acquired 99% accuracy ok K =6
-    for repeat in range(2,20,1):
+
+    for repeat in range(2,10):
         elbow, cluster = clustering(X, 'rad', 'compact', repeat)
         use_cluster = copy.deepcopy(cluster)
-        
-        ###work here
-        # strata_cluster = stratify(use_cluster, 'outcome', 25)
-
-        elbow_points = elbow[:8]
+        elbow_points = elbow[2:8]
         # plt.plot(range(len(elbow_points)), elbow_points,'go--', linewidth=1.5, markersize=4)
         # plt.xlabel("Iterations")
         # plt.ylabel("Sum Squares")
         # plt.show()
         new_cluster = majority_cluster(use_cluster, repeat)
-        list_acc=accuracy(X, new_cluster)
-        list_avg = reg_avg(X, new_cluster)
+        nc_strat = stratify(new_cluster, 'outcome', 25)
+
+        list_acc=accuracy(og_strat, nc_strat)
+        list_avg = reg_avg(og_strat, nc_strat)
         accuracy_data.append(list_acc)
         average_data.append(list_avg)
 
-    plt.plot(range(2,len(accuracy_data)), accuracy_data[2:],'go--', linewidth=1.5, markersize=4)
+    plt.plot(range(len(accuracy_data)), accuracy_data,'go--', linewidth=1.5, markersize=4)
     plt.xlabel("Iterations")
     plt.ylabel("Accuracy")
     plt.show()
 
-    plt.plot(range(2,len(average_data)), average_data[2:],'go--', linewidth=1.5, markersize=4)
+    plt.plot(range(len(average_data)), average_data,'go--', linewidth=1.5, markersize=4)
     plt.xlabel("Iterations")
     plt.ylabel("Accuracy")
     plt.show()
@@ -325,5 +416,5 @@ if __name__ == "__main__":
 
     #iterate through cluster K amount of times
     for k in range(2,K,1):
-        plot_init_centroids(X, k)
+        plot_init_centroids(X, k, 'rad', 'compact')
         clustering(X, 'rad', 'compact', k)
