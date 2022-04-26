@@ -6,6 +6,56 @@ import random as rd
 import matplotlib.pyplot as plt
 import math
 
+#Gaussian kernel
+def kernel(x_i,x_j):
+    return np.exp(-0.5*np.linalg.norm(x_i-x_j)) 
+
+#Kernel Regression
+def kernelization(data, col1, col2):
+    df = data[[col1, col2]].to_numpy()
+    x = df[:,0]
+
+#finding max value in data to set limit
+    x_max = 0
+    for large in range(len(x)):
+        if x[large] > x_max:
+            x_max = x[large]
+    x=x[:,np.newaxis]
+    x=np.stack([x[:,0],np.ones(x.shape[0])],axis=1).reshape(-1,2)
+    y = df[:,1]
+
+#use kernel function on every index of K
+#store the value in the corresponding index of K
+    K=np.zeros((x.shape[0],x.shape[0]))
+    for i, row in enumerate(K):
+        for j, col in enumerate(K.T):
+            K[i,j]=kernel(x[i,:],x[j,:])
+
+#store inverse of K in a 
+#multiple y and a matrices
+    a = np.linalg.inv(K+0.1*np.eye(K.shape[0]))
+    m=np.dot(y,a)
+
+#creating the x-values for graph
+#uses x_max to set the range of the value
+    x_pred=np.arange(0,x_max,0.001)
+    x_pred=np.stack([x_pred,np.ones(x_pred.shape[0])],axis=1).reshape(-1,2)
+
+    y_pred=np.zeros(x_pred.shape[0])
+
+#use kernel function with every index of x_pred and every index of x
+#multiple the m and k matrices and store into y_pred
+    for outer_i, x_p in enumerate(x_pred):
+        print(x_p)
+        k = np.zeros(x.shape[0])
+        for i, row in enumerate(k):
+            k[i]=kernel(x_p,x[i,:])
+        y_pred[outer_i]=np.dot(m,k)
+
+    plt.plot(x_pred[:,0],y_pred, c='red')
+    plt.scatter(x[:,0], y)
+    plt.show()
+
 def linear_regression(data, col1, col2):
     N = len(data)
     x = data[col1]
@@ -24,56 +74,31 @@ def linear_regression(data, col1, col2):
 
 def gradient_descent(X,col1, col2):
     points = np.array(X[[col1, col2]])
-    learning_rate = 0.005
+    learning_rate = 0.0001
     b = 0
     m = 0
     num_iterations = 1000
+    D_b = 0
+    D_m = 0
+    #iterate num_iterations times
     for i in range(num_iterations):
         N = float(len(points))
-        D_b = 0
-        D_m = 0
+        #iterate number of points times
         for j in range(0, len(points)):
             x = points[j, 0]
             y = points[j, 1]
+            #partial derivative w.r.t. b
+            #sum of Y - Ypred times (-2/N)
+            #(-2/n)E(Y-Ypred)
             D_b += (-2/N) * (y-((m * x)+ b))
+            #partial derivative w.r.t. m
+            #sum of X times Y - Ypred times (-2/N)
+            #(-2/n)EX(Y-Ypred)
             D_m += (-2/N) * x * (y-((m * x)+ b))
+            #update b and m
             b = b - (learning_rate * D_b)
             m = m - (learning_rate * D_m)
     return b,m
-    
-# def gradient_descent(X, col1, col2):
-#     points = X[[col1, col2]]
-#     learning_rate = 0.005
-#     initial_b = 0
-#     initial_m = 0
-#     num_iterations = 1000
-#     print( "Starting gradient descent at b = {0}, m = {1}, error = {2}".format(initial_b, initial_m, calculate_error(initial_b, initial_m, np.array(points))))
-#     print ("Running...")
-#     [b, m] = gradient_descent_runner(points, initial_b, initial_m, learning_rate, num_iterations)
-#     print ("After {0} iterations b = {1}, m = {2}, error = {3}".format(num_iterations, b, m, calculate_error(b, m, np.array(points))))
-#     return [b,m]
-
-# def gradient_descent_runner(points, initial_b, initial_m, learning_rate, num_iterations):
-#     b = initial_b
-#     m = initial_m
-#     for i in range(num_iterations):
-#         b, m = step_gradient(b,m, np.array(points), learning_rate)
-#     return [b,m]
-
-# def step_gradient(current_b, current_m, points, learning_rate):
-#     D_b = 0
-#     D_m = 0
-#     N = float(len(points))
-#     for i in range(0, len(points)):
-#         x = points[i, 0]
-#         y = points[i, 1]
-#         D_b += (-2/N) * (y-((current_m * x)+ current_b))
-#         D_m += (-2/N) * x * (y-((current_m * x)+ current_b))
-#         current_b = current_b - (learning_rate * D_b)
-#         current_m = current_m - (learning_rate * D_m)
-#     new_b = current_b
-#     new_m = current_m
-#     return [new_b, new_m]
 
 def calculate_error(b, m, points):
     error = 0
@@ -117,6 +142,7 @@ def fit_new_counts_to_n(new_counts, n):
             break
     return integers
 
+#all points of data subtracted by min divided by max minus min
 def Normalize(data):
     return (data - data.min())/(data.max()-data.min())
 
@@ -231,6 +257,14 @@ def majority_cluster(df, K):
         #     cluster_data.loc[cluster_data['Cluster'] == i] = cluster_point
         #     # print(cluster_point)
         #     continue
+        '''
+        check first index of values
+        first index is always the larger number
+        check for length of values to make sure there is a True and False
+            if length is 1 then append either true or false
+        check for length of counts 
+            if length is 1 then append 0
+        '''
         if(values[0] == True):
             if(len(values) == 1):
                 values.append(False)
@@ -243,6 +277,11 @@ def majority_cluster(df, K):
 
         if(len(counts) == 1):
             counts.append(0)
+
+        '''
+        creating a data frame to compare values and their counts
+        separate the data frame into either True or False
+        '''
         data = {values[0]:[counts[0]], values[1]:[counts[1]]}
         cluster_df = pd.DataFrame(data)
         # print(cluster_df)
@@ -251,6 +290,10 @@ def majority_cluster(df, K):
         notTruth = cluster_df.loc[:,False]
         # print(truth, notTruth)
 
+        '''
+        if false>true then everything is false
+        if true>false then everything is true
+        '''
         if(notTruth.iloc[0] > truth.iloc[0]):
             cluster_point['outcome'] = False
             cluster_data.loc[cluster_data['Cluster'] == i] = cluster_point
@@ -365,19 +408,32 @@ if __name__ == "__main__":
 
     X=copy.deepcopy(df)
 
+    # kernel = kernelization(X, 'rad', 'smooth')
+    # plt.scatter(X['rad'], X['smooth'])
+    # plt.plot(X['rad'], kernel,'go--',c = 'r', linewidth=1.5, markersize=4)
+    # plt.show()
+
     B0, B1, reg_line = linear_regression(X, 'rad', 'smooth')
+    print(reg_line)
     plt.scatter(X['rad'], X['smooth'])
-    plt.plot(X['rad'], B0 + B1*X['rad'],'go--',c = 'r', linewidth=1.5, markersize=4)
+    plt.plot(X['rad'], B0 + B1*X['rad'],c = 'r', linewidth=1.5, markersize=4)
     plt.xlabel('rad')
-    plt.ylabel('concave')
+    plt.ylabel('smooth')
     plt.show()
 
     b,m = gradient_descent(X, 'rad', 'smooth')
     print(b,m)
     plt.scatter(X['rad'], X['smooth'])
-    plt.plot(X['rad'], b + m*X['rad'], 'go--',c = 'r', linewidth=1.5, markersize=4)
+    plt.plot(X['rad'], b + m*X['rad'],c = 'r', linewidth=1.5, markersize=4)
+    plt.xlabel('rad')
+    plt.ylabel('smooth')
     plt.show()
-    og_strat = stratify(X, 'outcome', 25)
+    og_strat = stratify(X, 'outcome', 150)
+
+    kernelization(og_strat, 'rad', 'smooth')
+    # plt.scatter(og_strat['rad'], og_strat['smooth'])
+    # plt.plot(og_strat['rad'], kernel,'go--',c = 'r', linewidth=1.5, markersize=4)
+    # plt.show()
 
     accuracy_data = []
     average_data = []
@@ -385,25 +441,25 @@ if __name__ == "__main__":
     for repeat in range(2,10):
         elbow, cluster = clustering(X, 'rad', 'compact', repeat)
         use_cluster = copy.deepcopy(cluster)
-        elbow_points = elbow[2:8]
+        elbow_points = elbow[2:10]
         # plt.plot(range(len(elbow_points)), elbow_points,'go--', linewidth=1.5, markersize=4)
         # plt.xlabel("Iterations")
         # plt.ylabel("Sum Squares")
         # plt.show()
         new_cluster = majority_cluster(use_cluster, repeat)
-        nc_strat = stratify(new_cluster, 'outcome', 25)
+        nc_strat = stratify(new_cluster, 'outcome', 150)
 
         list_acc=accuracy(og_strat, nc_strat)
         list_avg = reg_avg(og_strat, nc_strat)
         accuracy_data.append(list_acc)
         average_data.append(list_avg)
 
-    plt.plot(range(len(accuracy_data)), accuracy_data,'go--', linewidth=1.5, markersize=4)
+    plt.plot(range(2,10), accuracy_data,'go--', linewidth=1.5, markersize=4)
     plt.xlabel("Iterations")
     plt.ylabel("Accuracy")
     plt.show()
 
-    plt.plot(range(len(average_data)), average_data,'go--', linewidth=1.5, markersize=4)
+    plt.plot(range(2,10), average_data,'go--', linewidth=1.5, markersize=4)
     plt.xlabel("Iterations")
     plt.ylabel("Accuracy")
     plt.show()
