@@ -7,6 +7,7 @@ import random as rd
 import matplotlib.pyplot as plt
 import math
 import seaborn as sns
+from sklearn.datasets import make_blobs
 
 #majority clustering
 #if false>true then everything is false
@@ -110,10 +111,12 @@ def Normalize(data):
     return (data - data.min())/(data.max()-data.min())
 
 class LinearRegress:
-    def __init__(self, data, col1, col2):
+    def __init__(self, data, col1, col2, lr, iter):
         self.data = data
         self.col1 = col1
         self.col2 = col2
+        self.lr = lr
+        self.iter = iter
     def linear_regression(self):
         N = len(self.data)
         x = self.data[self.col1]
@@ -132,10 +135,10 @@ class LinearRegress:
 
     def gradient_descent(self):
         points = np.array(self.data[[self.col1, self.col2]])
-        learning_rate = 0.0001
+        learning_rate = self.lr
         b = 0
         m = 0
-        num_iterations = 1000
+        num_iterations = self.iter
         D_b = 0
         D_m = 0
         #iterate num_iterations times
@@ -346,23 +349,45 @@ class calc_accuracy:
         df['sum'] = df.sum(axis=1)
         average = df[True]/df['sum']
         return average
+'''
+Z = w*x + b
+a = sig(z) = 1 / (1+e^-z)
+x1 = delta(Z)/delta(w)
+'''
 
 class LogisticRegress:
-    def __init__(self, data, data2, col1, col2):
-        self.data = data
-        self.data2 = data2
-        self.col1 = col1
-        self.col2 = col2
+    def __init__(self, d_x, lr = 0.001, iters = 1000):
+        self.lr = lr
+        self.iters = iters
+        self.m, self.n = d_x.shape
     
-    def sigmoid(self,z):
-        sig_func = 1 / (1 + np.exp(z))
-        return sig_func
+    def sigmoid(self, z):
+        return 1/(1+np.exp(-z))
     
-    def logReg(self, W, b):
-        return self.sigmoid(np.dot(self.data[self.col1], W) + b)
+    def train(self, d_x, y):
+        self.weights = np.zeros((self.n, 1))
+        self.bias = 0
 
-    def cost(self, h):
-        return (-self.data2[self.col2] * np.log(h + 0.001) - (1 - self.data2[self.col2]) * np.log(1 - h + 0.001)).mean()
+        for it in range(self.iters+1):
+            y_pred = self.sigmoid(np.dot(d_x, self.weights) + self.bias)
+
+            cost = -1/self.m * np.sum(y*np.log(y_pred) + (1-y)*np.log(1 - y_pred))
+
+            dw = 1/self.m * np.dot(d_x.T, (y_pred - y))
+            db = 1/self.m * np.sum(y_pred - y )
+
+            self.weights -= self.lr * dw
+            self.bias -= self.lr * db
+
+        return self.weights, self.bias
+    # def fit(self, d_x, y):
+    #     pass
+
+    def predict(self, d_x):
+        y_pred = self.sigmoid(np.dot(d_x, self.weights) + self.bias)
+        y_pred_lab = y_pred > 0.5
+
+        return y_pred_lab
 
 names_n = ['id_num', 'outcome', 'rad', 'texture', 'perim', 'area', 'smooth', 'compact', 'concave', 'concave_points',
             'sym', 'fractal_dim', \
@@ -388,36 +413,35 @@ if __name__ == "__main__":
         df.iloc[:,location] = Normalize(df.iloc[:,location])
     
     X=copy.deepcopy(df)
-    print(X['rad'])
 
     for h in range(len(df)):
             if df['outcome'].iloc[h] == True:
                 df['outcome'].iloc[h] = 1
             else:
                 df['outcome'].iloc[h] = 0
-    K=5
+    K=7
 
     new_X=copy.deepcopy(df)
-    xd = new_X.drop('outcome', 1)
     sns.regplot(x=X['rad'], y=X['outcome'], data=X, logistic=True, ci=None)
     plt.show()
 
-    lin = LinearRegress(new_X, 'rad', 'smooth')
+    lin = LinearRegress(new_X, 'rad', 'smooth', 0.0001, 1000)
+    logRegLine = LinearRegress(new_X, 'rad', 'outcome', 0.0001, 1000)
     kmeans = kcluster(X, 'rad', 'smooth')
-    reg_log = LogisticRegress(new_X, X, 'rad', 'outcome')
-    W = np.random.rand(new_X.shape[0])
-    b = np.random.rand(1)
-    print(W)
-    alpha = 0.1
-    sig_arr = []
-    for sigs in range(len(X)):
-        h = reg_log.logReg(W, b)
-        print(new_X.T.shape)
-        W = W - (alpha * np.dot(new_X.values.T, (h - X['outcome'])))
-        b = b - (alpha * (h - X['outcome']).mean() )
-        sig_arr.append(h)
-    
-    print(sig_arr)
+   
+
+    logData = new_X[['rad', 'smooth']].to_numpy().astype(float)
+    y = new_X['outcome'].to_numpy().astype(float)
+    y = y[:,np.newaxis]
+    logReg = LogisticRegress(logData)
+    w, b = logReg.train(logData, y)
+    sig = []
+    for log in range(len(logData)):
+        z = (w*logData[log]) + b
+        sig.append(logReg.sigmoid(z))
+    plt.plot(sig)
+    plt.show()
+
 
     B0, B1, reg_line = lin.linear_regression()
     print(reg_line)
@@ -434,6 +458,14 @@ if __name__ == "__main__":
     plt.xlabel('rad')
     plt.ylabel('smooth')
     plt.show()
+
+    b2, m2 = logRegLine.gradient_descent()
+    z = (m2*new_X['rad']) + b2
+    sig = 1/(1+np.exp(-z))
+    # plt.scatter(new_X['rad'], new_X['outcome'])
+    plt.plot(new_X['rad'], sig)
+    plt.show()
+
     og_strat = stratify(X, 'outcome', 150)
 
     # kernelization(og_strat, 'rad', 'smooth')
