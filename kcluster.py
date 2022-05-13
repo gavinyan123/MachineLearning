@@ -7,7 +7,7 @@ import random as rd
 import matplotlib.pyplot as plt
 import math
 import seaborn as sns
-from sklearn.datasets import make_blobs
+from sklearn.metrics import accuracy_score
 
 #majority clustering
 #if false>true then everything is false
@@ -356,38 +356,55 @@ x1 = delta(Z)/delta(w)
 '''
 
 class LogisticRegress:
-    def __init__(self, d_x, lr = 0.001, iters = 1000):
+    def __init__(self, lr = 0.001, iters = 1000):
         self.lr = lr
         self.iters = iters
-        self.m, self.n = d_x.shape
     
     def sigmoid(self, z):
-        return 1/(1+np.exp(-z))
+        return np.exp(z)/(1+np.exp(-z))
     
-    def train(self, d_x, y):
-        self.weights = np.zeros((self.n, 1))
-        self.bias = 0
+    def fit(self, x, y):
+        #m = number of data points
+        #n = number of features
+        self.m, self.n = x.shape
 
-        for it in range(self.iters+1):
-            y_pred = self.sigmoid(np.dot(d_x, self.weights) + self.bias)
+        #initialize weight and bias
+        self.w = np.zeros(self.n)
+        self.b = 0 
 
-            cost = -1/self.m * np.sum(y*np.log(y_pred) + (1-y)*np.log(1 - y_pred))
+        self.x = x
+        self.y = y
 
-            dw = 1/self.m * np.dot(d_x.T, (y_pred - y))
-            db = 1/self.m * np.sum(y_pred - y )
+        #gradient descent
+        for i in range(self.iters):
+            y_hat = self.sigmoid(self.x.dot(self.w) + self.b)
 
-            self.weights -= self.lr * dw
-            self.bias -= self.lr * db
+            #derivatives
+            dw = (1/self.m)*np.dot(self.x.T, (y_hat - self.y))
 
-        return self.weights, self.bias
-    # def fit(self, d_x, y):
-    #     pass
+            db = (1/self.m)*np.sum(y_hat - self.y)
 
-    def predict(self, d_x):
-        y_pred = self.sigmoid(np.dot(d_x, self.weights) + self.bias)
-        y_pred_lab = y_pred > 0.5
+            #update weights
+            self.w = self.w - self.lr * dw
+            self.b = self.b - self.lr * db
+        return self.w, self.b
 
-        return y_pred_lab
+    # def update_weights(self):
+    #     y_hat = self.sigmoid(np.dot(self.x ,self.w) + self.b)
+
+    #     #derivatives
+    #     dw = (1/self.m)*np.dot(self.x.T, (y_hat - self.y))
+
+    #     db = (1/self.m)*np.sum(y_hat - self.y)
+
+    #     #update weights
+    #     self.w = self.w - self.lr * dw
+    #     self.b = self.b - self.lr * db
+
+    def predict(self, x):
+        y_pred = self.sigmoid(np.dot(x, self.w) + self.b)
+        y_preds = np.where(y_pred > 0.5, 1,0)
+        return y_pred, y_preds
 
 names_n = ['id_num', 'outcome', 'rad', 'texture', 'perim', 'area', 'smooth', 'compact', 'concave', 'concave_points',
             'sym', 'fractal_dim', \
@@ -413,35 +430,43 @@ if __name__ == "__main__":
         df.iloc[:,location] = Normalize(df.iloc[:,location])
     
     X=copy.deepcopy(df)
-
-    for h in range(len(df)):
-            if df['outcome'].iloc[h] == True:
-                df['outcome'].iloc[h] = 1
-            else:
-                df['outcome'].iloc[h] = 0
+    X2 = copy.deepcopy(df)
+    # for h in range(len(df)):
+    #         if df['outcome'].iloc[h] == True:
+    #             df['outcome'].iloc[h] = 1
+    #         else:
+    #             df['outcome'].iloc[h] = 0
     K=7
 
     new_X=copy.deepcopy(df)
+    new_X = new_X.drop(columns= ['outcome'])
+    print(new_X)
     sns.regplot(x=X['rad'], y=X['outcome'], data=X, logistic=True, ci=None)
     plt.show()
 
     lin = LinearRegress(new_X, 'rad', 'smooth', 0.0001, 1000)
-    logRegLine = LinearRegress(new_X, 'rad', 'outcome', 0.0001, 1000)
+    logRegLine = LinearRegress(X, 'rad', 'outcome', 0.0001, 1000)
     kmeans = kcluster(X, 'rad', 'smooth')
-   
+    means_K = kcluster(X, 'rad', 'smooth') 
 
-    logData = new_X[['rad', 'smooth']].to_numpy().astype(float)
-    y = new_X['outcome'].to_numpy().astype(float)
-    y = y[:,np.newaxis]
-    logReg = LogisticRegress(logData)
-    w, b = logReg.train(logData, y)
-    sig = []
-    for log in range(len(logData)):
-        z = (w*logData[log]) + b
-        sig.append(logReg.sigmoid(z))
-    plt.plot(sig)
+    #Logistic Regression
+    logReg = LogisticRegress()
+    
+    e, c = means_K.clustering(3)
+    cluster_copy = copy.deepcopy(c)
+    cluster_for_log = majority_cluster(cluster_copy, 3)
+    weight, bias = logReg.fit(new_X, cluster_for_log['outcome'])
+    
+    predict, predicts = logReg.predict(new_X)
+
+    print(predict, predicts)
+
+    plt.scatter(new_X['rad'], cluster_for_log['outcome'])
+    plt.plot(new_X['rad'], predict)
     plt.show()
 
+    accurate = accuracy_score(predicts, cluster_for_log['outcome'])
+    print(accurate)
 
     B0, B1, reg_line = lin.linear_regression()
     print(reg_line)
@@ -462,7 +487,7 @@ if __name__ == "__main__":
     b2, m2 = logRegLine.gradient_descent()
     z = (m2*new_X['rad']) + b2
     sig = 1/(1+np.exp(-z))
-    # plt.scatter(new_X['rad'], new_X['outcome'])
+    plt.scatter(new_X['rad'], X['outcome'])
     plt.plot(new_X['rad'], sig)
     plt.show()
 
@@ -476,6 +501,7 @@ if __name__ == "__main__":
     accuracy_data = []
     average_data = []
 
+    #highest accuracy for majority_cluster = 7
     for repeat in range(2,10):
         elbow, cluster = kmeans.clustering(repeat)
         use_cluster = copy.deepcopy(cluster)
