@@ -117,6 +117,7 @@ class LinearRegress:
         self.col2 = col2
         self.lr = lr
         self.iter = iter
+        self.points = np.array(self.data[[self.col1, self.col2]])
     def linear_regression(self):
         N = len(self.data)
         x = self.data[self.col1]
@@ -134,7 +135,7 @@ class LinearRegress:
         return (B0, B1, reg_line)
 
     def gradient_descent(self):
-        points = np.array(self.data[[self.col1, self.col2]])
+    
         learning_rate = self.lr
         b = 0
         m = 0
@@ -143,11 +144,11 @@ class LinearRegress:
         D_m = 0
         #iterate num_iterations times
         for i in range(num_iterations):
-            N = float(len(points))
+            N = float(len(self.points))
             #iterate number of points times
-            for j in range(0, len(points)):
-                x = points[j, 0]
-                y = points[j, 1]
+            for j in range(0, len(self.points)):
+                x = self.points[j, 0]
+                y = self.points[j, 1]
                 #partial derivative w.r.t. b
                 #sum of Y - Ypred times (-2/N)
                 #(-2/n)E(Y-Ypred)
@@ -161,13 +162,13 @@ class LinearRegress:
                 m = m - (learning_rate * D_m)
         return b,m
 
-    def calculate_error(b, m, points):
+    def calculate_error(self, b, m):
         error = 0
-        for i in range(0, len(points)):
-            x = points[i, 0]
-            y = points[i, 1]
+        for i in range(0, len(self.points)):
+            x = self.points[i, 0]
+            y = self.points[i, 1]
             error = error + (y - (m * x + b))**2
-        return error/float(len(points))
+        return error/float(len(self.points))
 
 class kcluster:
     def __init__(self, data, col1, col2):
@@ -256,17 +257,19 @@ class kcluster:
             # for k in range(K):
             #     color = np.random.rand(1,3)
             #     data=X[X["Cluster"]==k+1]
-            #     plt.scatter(data[col1],data[col2],c=color)
-            # plt.scatter(Centroids[col1],Centroids[col2],c='red')
-            # plt.xlabel(col1)
-            # plt.ylabel(col2)
+            #     plt.scatter(data[self.col1],data[self.col2],c=color)
+            # plt.scatter(Centroids[self.col1],Centroids[self.col2],c='red')
+            # plt.title("KMeans Clustering")
+            # plt.xlabel(self.col1)
+            # plt.ylabel(self.col2)
             # plt.show()
 
-        # elbow_points = elbow_plot[:8]
+        elbow_points = elbow_plot[:8]
         # plt.plot(range(len(elbow_points)), elbow_points,'go--', linewidth=1.5, markersize=4)
         # plt.xlabel("Iterations")
         # plt.ylabel("Sum Squares")
         # plt.show()
+
         return elbow_plot, X
 
 class calc_accuracy:
@@ -356,39 +359,46 @@ x1 = delta(Z)/delta(w)
 '''
 
 class LogisticRegress:
-    def __init__(self, lr = 0.001, iters = 1000):
+    def __init__(self, lr = 0.0000008, iters = 1000):
         self.lr = lr
         self.iters = iters
     
     def sigmoid(self, z):
-        return np.exp(z)/(1+np.exp(-z))
+        return 1/(1+np.exp(-z))
     
     def fit(self, x, y):
         #m = number of data points
         #n = number of features
-        self.m, self.n = x.shape
+        self.m = len(x)
 
         #initialize weight and bias
-        self.w = np.zeros(self.n)
+        self.w = 0
         self.b = 0 
 
-        self.x = x
-        self.y = y
+        self.x = np.array(x)
+        self.y = np.array(y)
+
+        dw=0
+        db=0
 
         #gradient descent
         for i in range(self.iters):
-            y_hat = self.sigmoid(self.x.dot(self.w) + self.b)
+            for j in range(self.m):
+                x = self.x[j]
+                y = self.y[j]
 
-            #derivatives
-            dw = (1/self.m)*np.dot(self.x.T, (y_hat - self.y))
+                y_hat = self.sigmoid((self.w * x)+ self.b)
+                # y_hat = (self.w * x)+ self.b
 
-            db = (1/self.m)*np.sum(y_hat - self.y)
+                #derivatives
+                dw += (-2/self.m)*x*(y - y_hat)
 
-            #update weights
-            self.w = self.w - self.lr * dw
-            self.b = self.b - self.lr * db
+                db += (-2/self.m)*(y - y_hat)
+
+                #update weights
+                self.w = self.w - (self.lr * dw)
+                self.b = self.b - (self.lr * db)
         return self.w, self.b
-
     # def update_weights(self):
     #     y_hat = self.sigmoid(np.dot(self.x ,self.w) + self.b)
 
@@ -401,8 +411,8 @@ class LogisticRegress:
     #     self.w = self.w - self.lr * dw
     #     self.b = self.b - self.lr * db
 
-    def predict(self, x):
-        y_pred = self.sigmoid(np.dot(x, self.w) + self.b)
+    def predict(self, x,w,b):
+        y_pred = self.sigmoid(x*w + b)
         y_preds = np.where(y_pred > 0.5, 1,0)
         return y_pred, y_preds
 
@@ -441,7 +451,7 @@ if __name__ == "__main__":
     new_X=copy.deepcopy(df)
     new_X = new_X.drop(columns= ['outcome'])
     print(new_X)
-    sns.regplot(x=X['rad'], y=X['outcome'], data=X, logistic=True, ci=None)
+    sns.regplot(x=X['rad'], y=X['outcome'], data=X, logistic=True, ci=None, line_kws={"color": "red"})
     plt.show()
 
     lin = LinearRegress(new_X, 'rad', 'smooth', 0.0001, 1000)
@@ -455,14 +465,14 @@ if __name__ == "__main__":
     e, c = means_K.clustering(3)
     cluster_copy = copy.deepcopy(c)
     cluster_for_log = majority_cluster(cluster_copy, 3)
-    weight, bias = logReg.fit(new_X, cluster_for_log['outcome'])
-    
-    predict, predicts = logReg.predict(new_X)
+    weights, bias = logReg.fit(new_X['rad'], cluster_for_log['outcome'])
+    predict, predicts = logReg.predict(new_X['rad'], weights, bias)
 
     print(predict, predicts)
 
     plt.scatter(new_X['rad'], cluster_for_log['outcome'])
-    plt.plot(new_X['rad'], predict)
+    plt.plot(new_X['rad'],  logReg.sigmoid(new_X['rad']*weights + bias), c = 'red')
+    plt.title("Logistic Regression")
     plt.show()
 
     accurate = accuracy_score(predicts, cluster_for_log['outcome'])
@@ -474,6 +484,7 @@ if __name__ == "__main__":
     plt.plot(X['rad'], B0 + B1*X['rad'],c = 'r', linewidth=1.5, markersize=4)
     plt.xlabel('rad')
     plt.ylabel('smooth')
+    plt.title("Linear Regression(Algebraic Method)")
     plt.show()
 
     b,m = lin.gradient_descent()
@@ -482,6 +493,7 @@ if __name__ == "__main__":
     plt.plot(X['rad'], b + m*X['rad'],c = 'r', linewidth=1.5, markersize=4)
     plt.xlabel('rad')
     plt.ylabel('smooth')
+    plt.title("Linear Regression(Gradient Descent)")
     plt.show()
 
     b2, m2 = logRegLine.gradient_descent()
@@ -506,10 +518,10 @@ if __name__ == "__main__":
         elbow, cluster = kmeans.clustering(repeat)
         use_cluster = copy.deepcopy(cluster)
         elbow_points = elbow[2:10]
-        # plt.plot(range(len(elbow_points)), elbow_points,'go--', linewidth=1.5, markersize=4)
-        # plt.xlabel("Iterations")
-        # plt.ylabel("Sum Squares")
-        # plt.show()
+        plt.plot(range(len(elbow_points)), elbow_points,'go--', linewidth=1.5, markersize=4)
+        plt.xlabel("Iterations")
+        plt.ylabel("Sum Squares")
+        plt.show()
         new_cluster = majority_cluster(use_cluster, repeat)
         nc_strat = stratify(new_cluster, 'outcome', 150)
 
@@ -534,7 +546,7 @@ if __name__ == "__main__":
     plt.ylabel('compact')
     plt.show()
 
-    #iterate through cluster K amount of times
-    for k in range(2,K,1):
-        kmeans.plot_init_centroids(k)
-        kmeans.clustering(k)
+    # #iterate through cluster K amount of times
+    # for k in range(2,K,1):
+    #     kmeans.plot_init_centroids(k)
+    #     kmeans.clustering(k)
